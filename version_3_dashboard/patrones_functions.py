@@ -341,7 +341,7 @@ def detectar_alteracion_difusion(resultados_dlco):
 
 def detectar_broncodilatacion_significativa(datos):
     """
-    Detecta respuesta significativa a broncodilatador
+    Detecta respuesta significativa a broncodilatador usando doble umbral y preferencia FEV1.
     """
     fev1_pre = datos.get('FEV1 pre')
     fev1_post = datos.get('FEV1 post')
@@ -353,33 +353,33 @@ def detectar_broncodilatacion_significativa(datos):
         if (fev1_pre == 'Valor no encontrado' or fev1_post == 'Valor no encontrado' or
             fvc_pre == 'Valor no encontrado' or fvc_post == 'Valor no encontrado'):
             return False, "Datos de broncodilatación insuficientes"
-        
         try:
             fev1_pre = float(fev1_pre)
             fev1_post = float(fev1_post)
             fvc_pre = float(fvc_pre)
             fvc_post = float(fvc_post)
             
-            # Calcular cambios porcentuales
+            # Cambios porcentuales y absolutos
             cambio_fev1 = ((fev1_post - fev1_pre) / fev1_pre) * 100
             cambio_fvc = ((fvc_post - fvc_pre) / fvc_pre) * 100
+            delta_fev1_ml = (fev1_post - fev1_pre) * 1000
+            delta_fvc_ml = (fvc_post - fvc_pre) * 1000
             
-            # Calcular cambios absolutos en ml
-            delta_fev1_ml = (fev1_post - fev1_pre) * 1000  # Convertir L a ml
-            delta_fvc_ml = (fvc_post - fvc_pre) * 1000  # Convertir L a ml
-            
-            # Criterios de respuesta significativa (≥12% Y ≥200ml)
+            # Doble umbral
             respuesta_fev1 = cambio_fev1 >= 12 and delta_fev1_ml >= 200
             respuesta_fvc = cambio_fvc >= 12 and delta_fvc_ml >= 200
+            respuesta_fev1_400 = delta_fev1_ml >= 400
             
-            if respuesta_fev1 or respuesta_fvc:
-                return True, f"Respuesta significativa: FEV1 +{cambio_fev1:.1f}%, FVC +{cambio_fvc:.1f}%"
-            
-            return False, f"Sin respuesta significativa: FEV1 +{cambio_fev1:.1f}%, FVC +{cambio_fvc:.1f}%"
-        
+            if respuesta_fev1:
+                if respuesta_fev1_400:
+                    return True, f"Broncodilatación positiva por FEV₁ (+{cambio_fev1:.1f}%, {delta_fev1_ml:.0f} mL, >400 mL: alta probabilidad de asma)"
+                return True, f"Broncodilatación positiva por FEV₁ (+{cambio_fev1:.1f}%, {delta_fev1_ml:.0f} mL)"
+            elif respuesta_fvc:
+                return True, f"Broncodilatación positiva por FVC (+{cambio_fvc:.1f}%, {delta_fvc_ml:.0f} mL)"
+            else:
+                return False, f"Sin respuesta significativa: FEV₁ +{cambio_fev1:.1f}%, {delta_fev1_ml:.0f} mL; FVC +{cambio_fvc:.1f}%, {delta_fvc_ml:.0f} mL. No usar FEV₁/FVC para determinar positividad."
         except (ValueError, ZeroDivisionError):
             return False, "Error en cálculo de broncodilatación"
-    
     return False, "Datos de broncodilatación insuficientes"
 
 def generar_diagnostico_patron(resultados_espiro, resultados_dlco, resultados_vol, datos):

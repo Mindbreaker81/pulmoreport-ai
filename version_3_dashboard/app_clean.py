@@ -105,16 +105,14 @@ def crear_metricas_dashboard(datos, resultados_espiro, resultados_dlco, resultad
     if resultados_espiro:
         fev1_z = resultados_espiro.get('FEV1', {}).get('z_score', 0)
         fvc_z = resultados_espiro.get('FVC', {}).get('z_score', 0)
-        fef_z = resultados_espiro.get('FEF25-75%', {}).get('z_score', 0)
         
         # Peor z-score de espirometría
-        z_scores_espiro = [fev1_z, fvc_z, fef_z]
+        z_scores_espiro = [fev1_z, fvc_z]
         peor_z_espiro = min(z_scores_espiro) if z_scores_espiro else 0
         
         metricas['peor_z_espiro'] = peor_z_espiro
         metricas['fev1_z'] = fev1_z
         metricas['fvc_z'] = fvc_z
-        metricas['fef_z'] = fef_z
     
     # Métricas de DLCO
     if resultados_dlco:
@@ -225,7 +223,6 @@ def mostrar_dashboard_overview(metricas):
                 <p><strong>Peor Z-Score:</strong> {metricas['peor_z_espiro']:.2f}</p>
                 <p><strong>FEV1:</strong> {metricas.get('fev1_z', 'N/A'):.2f}</p>
                 <p><strong>FVC:</strong> {metricas.get('fvc_z', 'N/A'):.2f}</p>
-                <p><strong>FEF25-75%:</strong> {metricas.get('fef_z', 'N/A'):.2f}</p>
             </div>
             """, unsafe_allow_html=True)
     
@@ -390,54 +387,71 @@ def crear_grafico_broncodilatacion_horizontal(datos):
     except (ValueError, TypeError):
         return None
 
-def crear_semaforo_interpretacion(resultados_espiro, resultados_dlco, resultados_vol):
+def crear_semaforo_interpretacion(resultados_espiro, resultados_dlco, resultados_vol, interpretacion_bd=None):
     """
-    Crea interpretación tipo semáforo basada en los peores z-scores
+    Crea interpretación tipo semáforo basada en los peores z-scores, patrón espirométrico y broncodilatación
     """
     try:
-        # Recopilar todos los z-scores
+        # Recopilar z-scores relevantes (sin FEF25-75%)
         z_scores = []
-        
-        # Espirometría
+        z_labels = []
+        # Espirometría (solo FEV1 y FVC)
         if resultados_espiro and "error" not in resultados_espiro:
-            for param in ['FEV1', 'FVC', 'FEF25-75%']:
+            for param in ['FEV1', 'FVC']:
                 if param in resultados_espiro:
-                    z_scores.append(resultados_espiro[param]['z_score'])
-        
+                    z = resultados_espiro[param]['z_score']
+                    z_scores.append(z)
+                    z_labels.append(param)
         # DLCO
         if resultados_dlco and "error" not in resultados_dlco:
             for param in ['DLCO', 'KCO', 'VA']:
                 if param in resultados_dlco:
-                    z_scores.append(resultados_dlco[param]['z_score'])
-        
+                    z = resultados_dlco[param]['z_score']
+                    z_scores.append(z)
+                    z_labels.append(param)
         # Volúmenes
         if resultados_vol and "error" not in resultados_vol:
             for param in ['TLC', 'VC', 'RV', 'RV/TLC']:
                 if param in resultados_vol:
-                    z_scores.append(resultados_vol[param]['z_score'])
-        
+                    z = resultados_vol[param]['z_score']
+                    z_scores.append(z)
+                    z_labels.append(param)
         if not z_scores:
-            return "gray", "Sin datos para análisis"
-        
-        # Encontrar el peor z-score
+            return "gray", "Sin datos para análisis", "No se encontraron parámetros válidos"
+        # Encontrar el peor z-score y su etiqueta
         peor_z = min(z_scores)
-        
+        peor_param = z_labels[z_scores.index(peor_z)]
         # Determinar color y texto del semáforo
         if peor_z >= -1.64:
-            return "green", "FUNCIÓN PULMONAR NORMAL"
+            color = "green"
+            texto = "FUNCIÓN PULMONAR NORMAL"
         elif peor_z >= -2.5:
-            return "yellow", "ALTERACIÓN LEVE"
+            color = "yellow"
+            texto = "ALTERACIÓN LEVE"
         elif peor_z >= -4.0:
-            return "red", "ALTERACIÓN MODERADA-SEVERA"
+            color = "red"
+            texto = "ALTERACIÓN MODERADA-SEVERA"
         else:
-            return "red", "ALTERACIÓN MUY SEVERA"
-    
+            color = "red"
+            texto = "ALTERACIÓN MUY SEVERA"
+        # Patrón espirométrico
+        patron_espiro = ""
+        if resultados_espiro and "error" not in resultados_espiro:
+            patron_espiro = generar_interpretacion_general(resultados_espiro).split('\n')[0]  # Solo la primera línea
+        # Broncodilatación
+        texto_bd = ""
+        if interpretacion_bd:
+            texto_bd = f"<br/><b>Broncodilatación:</b> {interpretacion_bd.splitlines()[0]}"
+        # Descripción de la base del color
+        descripcion = f"<b>Color basado en:</b> {peor_param} (Z = {peor_z:.2f})<br/>{patron_espiro}{texto_bd}"
+        return color, texto, descripcion
     except Exception as e:
-        return "gray", f"Error en análisis: {str(e)}"
+        return "gray", f"Error en análisis: {str(e)}", "Error interno"
 
 def interpretar_broncodilatacion(datos):
     """
-    Interpreta la respuesta broncodilatadora usando criterios GLI y z-score
+    Interpreta la respuesta broncodilatadora usando doble umbral (≥12% y ≥200 mL),
+    preferencia FEV1, FVC solo si FEV1 no mejora, y agrega interpretación clínica.
     """
     try:
         # Obtener valores pre y post
@@ -470,11 +484,14 @@ def interpretar_broncodilatacion(datos):
         delta_fev1 = fev1_post - fev1_pre
         delta_fvc_pct = (delta_fvc / fvc_pre) * 100
         delta_fev1_pct = (delta_fev1 / fev1_pre) * 100
+        delta_fvc_ml = delta_fvc * 1000
+        delta_fev1_ml = delta_fev1 * 1000
         
-        # Criterios GLI para respuesta broncodilatadora significativa
-        respuesta_fev1 = delta_fev1_pct >= 12 and delta_fev1 >= 0.2
-        respuesta_fvc = delta_fvc_pct >= 12 and delta_fvc >= 0.2
-
+        # Doble umbral: ambos deben cumplirse
+        respuesta_fev1 = (delta_fev1_pct >= 12) and (delta_fev1_ml >= 200)
+        respuesta_fvc = (delta_fvc_pct >= 12) and (delta_fvc_ml >= 200)
+        respuesta_fev1_400 = delta_fev1_ml >= 400
+        
         # Calcular z-score pre y post
         fev1_esp = calcular_valor_esperado_fev1(edad, altura, sexo)
         fvc_esp = calcular_valor_esperado_fvc(edad, altura, sexo)
@@ -487,19 +504,24 @@ def interpretar_broncodilatacion(datos):
         int_fvc_pre, sev_fvc_pre = interpretar_z_score_con_severidad(z_fvc_pre)
         int_fvc_post, sev_fvc_post = interpretar_z_score_con_severidad(z_fvc_post)
 
-        texto = f"**FEV1**: +{delta_fev1:.2f}L ({delta_fev1_pct:.1f}%)\n"
+        texto = f"**FEV1**: +{delta_fev1:.2f}L ({delta_fev1_pct:.1f}%, {delta_fev1_ml:.0f} mL)\n"
         texto += f"Z-score pre: {z_fev1_pre:.2f} ({int_fev1_pre}), post: {z_fev1_post:.2f} ({int_fev1_post})\n"
-        texto += f"**FVC**: +{delta_fvc:.2f}L ({delta_fvc_pct:.1f}%)\n"
+        texto += f"**FVC**: +{delta_fvc:.2f}L ({delta_fvc_pct:.1f}%, {delta_fvc_ml:.0f} mL)\n"
         texto += f"Z-score pre: {z_fvc_pre:.2f} ({int_fvc_pre}), post: {z_fvc_post:.2f} ({int_fvc_post})\n\n"
 
-        if respuesta_fev1 and respuesta_fvc:
-            return f"✅ **Respuesta broncodilatadora significativa**\n\n{texto}Ambos parámetros muestran mejoría significativa tras broncodilatación."
-        elif respuesta_fev1:
-            return f"✅ **Respuesta broncodilatadora parcial**\n\n{texto}Solo FEV1 muestra mejoría significativa tras broncodilatación."
+        # Mensaje clínico
+        clinica = ""
+        if respuesta_fev1:
+            if respuesta_fev1_400:
+                clinica = "🔬 **Interpretación clínica:** Un aumento >400 mL en FEV₁ sugiere alta probabilidad de asma.\n"
+            clinica += "🫁 **Interpretación clínica:** La positividad apoya diagnóstico de asma (reversibilidad típica). En EPOC, un test positivo sugiere componente reversible, pero no descarta EPOC.\n"
+            return f"✅ **Broncodilatación positiva por FEV₁**\n\n{texto}{clinica}"
         elif respuesta_fvc:
-            return f"✅ **Respuesta broncodilatadora parcial**\n\n{texto}Solo FVC muestra mejoría significativa tras broncodilatación."
+            clinica = "🫁 **Interpretación clínica:** La positividad por FVC puede ser útil en enfisema con atrapamiento aéreo.\n"
+            clinica += "En EPOC, un test positivo sugiere componente reversible, pero no descarta EPOC.\n"
+            return f"✅ **Broncodilatación positiva por FVC**\n\n{texto}{clinica}"
         else:
-            return f"❌ **Sin respuesta broncodilatadora significativa**\n\n{texto}Ningún parámetro cumple criterios de respuesta significativa (≥12% Y ≥200ml)."
+            return f"❌ **Sin respuesta broncodilatadora significativa**\n\n{texto}Ningún parámetro cumple criterios de respuesta significativa (≥12% y ≥200 mL).\n\nNo usar FEV₁/FVC para determinar positividad."
     except Exception as e:
         return f"❌ Error en interpretación de broncodilatación: {str(e)}"
 
@@ -966,8 +988,8 @@ if uploaded_files:
                         
                         if "error" not in resultados_espiro:
                             # Crear semáforo de interpretación
-                            color_semaforo, texto_semaforo = crear_semaforo_interpretacion(
-                                resultados_espiro, resultados_dlco, resultados_vol
+                            color_semaforo, texto_semaforo, descripcion = crear_semaforo_interpretacion(
+                                resultados_espiro, resultados_dlco, resultados_vol, interpretacion_bd
                             )
                             
                             # Mostrar semáforo
@@ -977,6 +999,7 @@ if uploaded_files:
                                 <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
                                     <div class="traffic-light {color_semaforo}" style="margin: 0 auto 10px auto;"></div>
                                     <h3 style="color: {color_semaforo}; margin: 0;">{texto_semaforo}</h3>
+                                    <div style='font-size: 1rem; color: #333; margin-top: 10px; text-align: left;'>{descripcion}</div>
                                 </div>
                                 """, unsafe_allow_html=True)
                             
