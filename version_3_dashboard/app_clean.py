@@ -508,8 +508,186 @@ def generar_recomendaciones_clinicas(resultados_espiro, resultados_dlco, resulta
     return "Recomendaciones clínicas"
 
 def generar_reporte_pdf(datos, resultados_espiro, resultados_dlco, resultados_vol, interpretacion_bd, nombre_archivo="PulmoReport_AI"):
-    """Función placeholder - implementar según el archivo original"""
-    return None
+    """
+    Genera un reporte PDF completo del análisis de función pulmonar
+    """
+    try:
+        # Crear buffer para el PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Estilos personalizados
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=1,  # Centrado
+            textColor=colors.HexColor('#1f77b4')
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=20,
+            textColor=colors.HexColor('#2c3e50')
+        )
+        
+        # Título principal
+        story.append(Paragraph("🫁 PulmoReport AI", title_style))
+        story.append(Paragraph("Análisis Inteligente de Funcionalismo Pulmonar", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Información del paciente
+        story.append(Paragraph("📋 INFORMACIÓN DEL PACIENTE", subtitle_style))
+        if datos.get('Edad') and datos.get('Altura') and datos.get('Sexo'):
+            info_paciente = [
+                ['Edad', datos.get('Edad', 'N/A')],
+                ['Altura', f"{datos.get('Altura', 'N/A')} cm"],
+                ['Sexo', datos.get('Sexo', 'N/A')],
+                ['Peso', f"{datos.get('Peso', 'N/A')} kg"] if datos.get('Peso') else ['Peso', 'N/A']
+            ]
+            t = Table(info_paciente, colWidths=[2*inch, 3*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(t)
+        story.append(Spacer(1, 20))
+        
+        # Resultados de Espirometría
+        if resultados_espiro and "error" not in resultados_espiro:
+            story.append(Paragraph("📊 RESULTADOS DE ESPIROMETRÍA", subtitle_style))
+            espiro_data = []
+            espiro_data.append(['Parámetro', 'Observado', 'Esperado', 'Z-Score', 'Interpretación'])
+            
+            for param in ['FEV1', 'FVC', 'FEF25-75%']:
+                if param in resultados_espiro:
+                    datos_analisis = resultados_espiro[param]
+                    espiro_data.append([
+                        param,
+                        f"{datos_analisis['observado']:.2f}",
+                        f"{datos_analisis['esperado']:.2f}",
+                        f"{datos_analisis['z_score']:.2f}",
+                        datos_analisis['interpretacion']
+                    ])
+            
+            t = Table(espiro_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 2.8*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 20))
+        
+        # Resultados de DLCO
+        if resultados_dlco and "error" not in resultados_dlco:
+            story.append(Paragraph("🫁 RESULTADOS DE DLCO", subtitle_style))
+            dlco_data = []
+            dlco_data.append(['Parámetro', 'Observado', 'Esperado', 'Z-Score', 'Interpretación'])
+            
+            for param in ['DLCO', 'KCO', 'VA']:
+                if param in resultados_dlco:
+                    datos_analisis = resultados_dlco[param]
+                    dlco_data.append([
+                        param,
+                        f"{datos_analisis['observado']:.2f}",
+                        f"{datos_analisis['esperado']:.2f}",
+                        f"{datos_analisis['z_score']:.2f}",
+                        datos_analisis['interpretacion']
+                    ])
+            
+            t = Table(dlco_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 2.8*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 20))
+        
+        # Resultados de Volúmenes
+        if resultados_vol and "error" not in resultados_vol:
+            story.append(Paragraph("📏 RESULTADOS DE VOLÚMENES PULMONARES", subtitle_style))
+            vol_data = []
+            vol_data.append(['Parámetro', 'Observado', 'Esperado', 'Z-Score', 'Interpretación'])
+            
+            for param in ['TLC', 'VC', 'RV', 'RV/TLC']:
+                if param in resultados_vol:
+                    datos_analisis = resultados_vol[param]
+                    vol_data.append([
+                        param,
+                        f"{datos_analisis['observado']:.2f}",
+                        f"{datos_analisis['esperado']:.2f}",
+                        f"{datos_analisis['z_score']:.2f}",
+                        datos_analisis['interpretacion']
+                    ])
+            
+            t = Table(vol_data, colWidths=[1.2*inch, 1*inch, 1*inch, 1*inch, 2.8*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 20))
+        
+        # Interpretación de Broncodilatación
+        if interpretacion_bd:
+            story.append(Paragraph("💨 ANÁLISIS DE BRONCODILATACIÓN", subtitle_style))
+            story.append(Paragraph(interpretacion_bd, styles['Normal']))
+            story.append(Spacer(1, 20))
+        
+        # Recomendaciones
+        if resultados_espiro and "error" not in resultados_espiro:
+            story.append(Paragraph("🎯 RECOMENDACIONES CLÍNICAS", subtitle_style))
+            recomendaciones = generar_recomendaciones_clinicas(
+                resultados_espiro, resultados_dlco, resultados_vol, interpretacion_bd
+            )
+            story.append(Paragraph(recomendaciones, styles['Normal']))
+            story.append(Spacer(1, 20))
+        
+        # Footer
+        story.append(Paragraph("© 2025 PulmoReport AI - Diseñado por Edmundo Rosales Mayor", 
+                              ParagraphStyle('Footer', fontSize=8, alignment=1, textColor=colors.grey)))
+        
+        # Construir PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        return buffer
+        
+    except Exception as e:
+        st.error(f"Error generando PDF: {str(e)}")
+        return None
 
 def validar_datos_extraidos(datos):
     """Función placeholder - implementar según el archivo original"""
