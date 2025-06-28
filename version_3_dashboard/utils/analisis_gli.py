@@ -626,19 +626,18 @@ def generar_interpretacion_general(resultados: Dict) -> str:
     
     interpretaciones = []
     
-    # Analizar patrones de espirometría
+    # Analizar patrones de espirometría SOLO con FEV1 y FVC
     fev1_ok = resultados.get('FEV1', {}).get('z_score', 0) >= -1.64
     fvc_ok = resultados.get('FVC', {}).get('z_score', 0) >= -1.64
-    fef_ok = resultados.get('FEF25-75%', {}).get('z_score', 0) >= -1.64
     
-    if fev1_ok and fvc_ok and fef_ok:
-        interpretaciones.append("✅ **Espirometría Normal**: Todos los parámetros están dentro del rango normal.")
-    elif not fev1_ok and not fvc_ok and fef_ok:
-        interpretaciones.append("🔍 **Patrón Restrictivo**: FEV1 y FVC reducidos con FEF25-75% normal.")
-    elif not fev1_ok and fvc_ok and not fef_ok:
-        interpretaciones.append("🔍 **Patrón Obstructivo**: FEV1 y FEF25-75% reducidos con FVC normal.")
-    elif not fev1_ok and not fvc_ok and not fef_ok:
-        interpretaciones.append("🔍 **Patrón Mixto**: FEV1, FVC y FEF25-75% reducidos.")
+    if fev1_ok and fvc_ok:
+        interpretaciones.append("✅ **Espirometría Normal**: FEV1 y FVC dentro del rango normal.")
+    elif not fev1_ok and fvc_ok:
+        interpretaciones.append("🔍 **Patrón Obstructivo**: FEV1 reducido con FVC normal.")
+    elif fev1_ok and not fvc_ok:
+        interpretaciones.append("🔍 **Patrón Restrictivo**: FVC reducido con FEV1 normal.")
+    elif not fev1_ok and not fvc_ok:
+        interpretaciones.append("🔍 **Patrón Mixto**: FEV1 y FVC reducidos.")
     
     # Analizar DLCO
     dlco_ok = resultados.get('DLCO', {}).get('z_score', 0) >= -1.64
