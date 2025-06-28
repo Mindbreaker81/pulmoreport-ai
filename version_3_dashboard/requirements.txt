@@ -1,0 +1,11 @@
+streamlit
+pdfplumber
+pandas
+scipy
+numpy
+openpyxl 
+plotly
+streamlit-plotly-events
+Pillow
+matplotlib
+reportlab 

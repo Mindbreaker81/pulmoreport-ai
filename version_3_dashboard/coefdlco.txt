@@ -1,0 +1,31 @@
+# Coeficiencia para Ecuaciones GLI 2017 para DLCO, KCO y VA
+
+DLCO varones:
+a = -7.034920
+p = 2.018368
+q = 0.012425
+
+DLCO mujeres:
+a = -5.159451
+p = 1.618697
+q = 0.015390
+
+KCO varones:
+a = 4.088408
+p = 0.415334
+q = 0.113166
+
+KCO mujeres:
+a = 5.131492
+p = 0.645656
+q = 0.097395
+
+VA varones:
+a = -11.086573
+p = 2.430021
+q = 0.097047
+
+VA mujeres:
+a = -9.873970
+p = 2.182316
+q = 0.082868
