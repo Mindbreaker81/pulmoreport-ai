@@ -4,7 +4,6 @@ pandas
 scipy
 numpy
 openpyxl 
-xlrd>=2.0.1
 plotly
 streamlit-plotly-events
 Pillow

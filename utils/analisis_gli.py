@@ -51,7 +51,7 @@ def cargar_tablas_gli():
     """
     global gli_tables, gli_coefficients
     try:
-        excel_file = 'lookuptables.xls'
+        excel_file = 'lookuptables.xlsx'
         # Nombres de hoja exactos según el archivo
         sheet_names = {
             'fev1_males': 'FEV1 males',
@@ -63,35 +63,41 @@ def cargar_tablas_gli():
         }
         
         for key, sheet in sheet_names.items():
-            # Leer columnas: B (edad), C (Lspline), D (Mspline), E (Sspline)
-            gli_tables[key] = pd.read_excel(excel_file, sheet_name=sheet, header=None, skiprows=4, usecols=[1, 2, 3, 4])
-            gli_tables[key].columns = ['age', 'Lspline', 'Mspline', 'Sspline']
-            
-            # Leer coeficientes a0-a5 y p0-p5 una sola vez por hoja
-            original_table = pd.read_excel(excel_file, sheet_name=sheet, header=None, skiprows=4)
-            
-            # Coeficientes a0-a5 (columna 8, filas 3-5)
-            a0 = float(original_table.iloc[3, 8])  # a0
-            a1 = float(original_table.iloc[4, 8])  # a1
-            a2 = float(original_table.iloc[5, 8])  # a2
-            a3 = 0.0  # No existe en el archivo
-            a4 = 0.0  # No existe en el archivo
-            a5 = 0.0  # No existe en el archivo
-            
-            # Coeficientes p0-p5 (columna 11, filas 3, 5)
-            p0 = float(original_table.iloc[3, 11])  # p0
-            p1 = float(original_table.iloc[5, 11])  # p1
-            p2 = 0.0  # No existe en el archivo
-            p3 = 0.0  # No existe en el archivo
-            p4 = 0.0  # No existe en el archivo
-            p5 = 0.0  # No existe en el archivo
-            
-            # Almacenar coeficientes
-            gli_coefficients[key] = (a0, a1, a2, a3, a4, a5, p0, p1, p2, p3, p4, p5)
-            
+            try:
+                # Leer columnas: B (edad), C (Lspline), D (Mspline), E (Sspline)
+                gli_tables[key] = pd.read_excel(excel_file, sheet_name=sheet, header=None, skiprows=4, usecols=[1, 2, 3, 4], engine='openpyxl')
+                gli_tables[key].columns = ['age', 'Lspline', 'Mspline', 'Sspline']
+                
+                # Leer coeficientes a0-a5 y p0-p5 una sola vez por hoja
+                original_table = pd.read_excel(excel_file, sheet_name=sheet, header=None, skiprows=4, engine='openpyxl')
+                
+                # Coeficientes a0-a5 (columna 8, filas 3-5)
+                a0 = float(original_table.iloc[3, 8])  # a0
+                a1 = float(original_table.iloc[4, 8])  # a1
+                a2 = float(original_table.iloc[5, 8])  # a2
+                a3 = 0.0  # No existe en el archivo
+                a4 = 0.0  # No existe en el archivo
+                a5 = 0.0  # No existe en el archivo
+                
+                # Coeficientes p0-p5 (columna 11, filas 3, 5)
+                p0 = float(original_table.iloc[3, 11])  # p0
+                p1 = float(original_table.iloc[5, 11])  # p1
+                p2 = 0.0  # No existe en el archivo
+                p3 = 0.0  # No existe en el archivo
+                p4 = 0.0  # No existe en el archivo
+                p5 = 0.0  # No existe en el archivo
+                
+                # Almacenar coeficientes
+                gli_coefficients[key] = (a0, a1, a2, a3, a4, a5, p0, p1, p2, p3, p4, p5)
+                
+            except Exception as sheet_error:
+                print(f"Error cargando hoja {sheet} del archivo {excel_file}: {sheet_error}")
+                return False
+                
         return True
     except Exception as e:
-        print(f"Error cargando tablas GLI: {e}")
+        print(f"Error general cargando tablas GLI: {e}")
+        print("Asegúrate de que el archivo 'lookuptables.xlsx' esté presente y que openpyxl esté instalado correctamente.")
         return False
 
 def cargar_tablas_dlco():
@@ -230,7 +236,7 @@ def obtener_coeficientes_regresion(edad: float, sexo: str, parametro: str) -> tu
         raise ValueError('Parámetro no soportado')
 
     # Leer el archivo completo sin eliminar filas
-    df = pd.read_excel('lookuptables.xls', sheet_name=sheet, header=None)
+    df = pd.read_excel('lookuptables.xlsx', sheet_name=sheet, header=None, engine='openpyxl')
     
     # Coeficientes fijos (no cambian con la edad)
     # I4, I5, I6 corresponden a las filas 3, 4, 5 del Excel (índices 3, 4, 5)
