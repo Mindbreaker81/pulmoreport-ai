@@ -563,6 +563,15 @@ def generar_reporte_pdf(datos, resultados_espiro, resultados_dlco, resultados_vo
             ]))
             story.append(t)
         story.append(Spacer(1, 20))
+
+        # Diagnóstico Detallado
+        story.append(Paragraph("🩺 DIAGNÓSTICO DETALLADO", subtitle_style))
+        try:
+            interpretacion_general = generar_interpretacion_general(resultados_espiro)
+        except Exception as e:
+            interpretacion_general = f"Error generando diagnóstico: {str(e)}"
+        story.append(Paragraph(interpretacion_general.replace('\n', '<br/>'), styles['Normal']))
+        story.append(Spacer(1, 20))
         
         # Resultados de Espirometría
         if resultados_espiro and "error" not in resultados_espiro:
@@ -668,7 +677,7 @@ def generar_reporte_pdf(datos, resultados_espiro, resultados_dlco, resultados_vo
         
         # Recomendaciones
         if resultados_espiro and "error" not in resultados_espiro:
-            story.append(Paragraph("🎯 RECOMENDACIONES CLÍNICAS", subtitle_style))
+            story.append(Paragraph("📝 ANÁLISIS CLÍNICO", subtitle_style))
             recomendaciones = generar_recomendaciones_clinicas(
                 resultados_espiro, resultados_dlco, resultados_vol, interpretacion_bd
             )
