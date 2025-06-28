@@ -101,7 +101,7 @@ def extract_datos_pulmonar(texto: str) -> dict:
     for i, l in enumerate(lineas):
         l_strip = l.strip()
         
-        # FVC [L] (formato original)
+        # FVC [L]
         if 'fvc [l]' in l_strip.lower():
             combined_text = extract_values_from_multiline(lineas, i, 'fvc')
             numbers = re.findall(r'\d+[\.,]\d+', combined_text)
@@ -121,29 +121,7 @@ def extract_datos_pulmonar(texto: str) -> dict:
                 datos['FVC pre'] = 'Valor no encontrado'
                 datos['FVC post'] = 'Valor no encontrado'
         
-        # FVC: (formato simple)
-        elif l_strip.lower().startswith('fvc:') and datos['FVC pre'] is None:
-            # Buscar números en la misma línea
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                # Detectar si es pre o post basado en contexto
-                if 'pre' in l_strip.lower() or 'pre-broncodilatador' in l_strip.lower():
-                    datos['FVC pre'] = numbers[0].replace(',', '.')
-                elif 'post' in l_strip.lower() or 'post-broncodilatador' in l_strip.lower():
-                    datos['FVC post'] = numbers[0].replace(',', '.')
-                else:
-                    # Buscar contexto en líneas anteriores
-                    context_lines = lineas[max(0, i-3):i]
-                    context_text = ' '.join(context_lines).lower()
-                    if 'pre' in context_text or 'pre-broncodilatador' in context_text:
-                        datos['FVC pre'] = numbers[0].replace(',', '.')
-                    elif 'post' in context_text or 'post-broncodilatador' in context_text:
-                        datos['FVC post'] = numbers[0].replace(',', '.')
-                    else:
-                        # Por defecto, asumir que es pre
-                        datos['FVC pre'] = numbers[0].replace(',', '.')
-        
-        # FEV1 [L] (formato original)
+        # FEV1 [L]
         elif 'fev1 [l]' in l_strip.lower():
             combined_text = extract_values_from_multiline(lineas, i, 'fev1')
             numbers = re.findall(r'\d+[\.,]\d+', combined_text)
@@ -162,28 +140,6 @@ def extract_datos_pulmonar(texto: str) -> dict:
             else:
                 datos['FEV1 pre'] = 'Valor no encontrado'
                 datos['FEV1 post'] = 'Valor no encontrado'
-        
-        # FEV1: (formato simple)
-        elif l_strip.lower().startswith('fev1:') and datos['FEV1 pre'] is None:
-            # Buscar números en la misma línea
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                # Detectar si es pre o post basado en contexto
-                if 'pre' in l_strip.lower() or 'pre-broncodilatador' in l_strip.lower():
-                    datos['FEV1 pre'] = numbers[0].replace(',', '.')
-                elif 'post' in l_strip.lower() or 'post-broncodilatador' in l_strip.lower():
-                    datos['FEV1 post'] = numbers[0].replace(',', '.')
-                else:
-                    # Buscar contexto en líneas anteriores
-                    context_lines = lineas[max(0, i-3):i]
-                    context_text = ' '.join(context_lines).lower()
-                    if 'pre' in context_text or 'pre-broncodilatador' in context_text:
-                        datos['FEV1 pre'] = numbers[0].replace(',', '.')
-                    elif 'post' in context_text or 'post-broncodilatador' in context_text:
-                        datos['FEV1 post'] = numbers[0].replace(',', '.')
-                    else:
-                        # Por defecto, asumir que es pre
-                        datos['FEV1 pre'] = numbers[0].replace(',', '.')
         
         # FEV1/FVC
         elif 'fev1/fvc' in l_strip.lower():
@@ -295,6 +251,7 @@ def extract_datos_pulmonar(texto: str) -> dict:
             numbers = re.findall(r'\d+[\.,]\d+', combined_text)
             if len(numbers) >= 1:
                 datos['RV/TLC'] = numbers[0].replace(',', '.')
+                print(f"DEBUG EXTRACCION RV/TLC: extraido={datos['RV/TLC']}")
             else:
                 datos['RV/TLC'] = 'Valor no encontrado'
     
@@ -309,111 +266,4 @@ def extract_datos_pulmonar(texto: str) -> dict:
     if not feno_found:
         datos['FeNO'] = 'Valor no encontrado'
     
-    # Detección adicional para patrones simples de broncodilatación
-    detectar_broncodilatacion_simple(lineas, datos)
-    
-    return datos
-
-def detectar_broncodilatacion_simple(lineas, datos):
-    """
-    Función adicional para detectar patrones simples de broncodilatación como:
-    FVC: 3.20 L
-    FEV1: 2.10 L
-    """
-    # Detectar secciones de espirometría
-    seccion_actual = None
-    for i, l in enumerate(lineas):
-        l_strip = l.strip()
-        
-        # Detectar secciones
-        if 'pre-broncodilatador' in l_strip.lower():
-            seccion_actual = 'pre'
-            continue
-        elif 'post-broncodilatador' in l_strip.lower():
-            seccion_actual = 'post'
-            continue
-        
-        # Extraer parámetros según la sección
-        if l_strip.lower().startswith('fvc:'):
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                if seccion_actual == 'pre':
-                    if datos['FVC pre'] is None:
-                        datos['FVC pre'] = numbers[0].replace(',', '.')
-                elif seccion_actual == 'post':
-                    if datos['FVC post'] is None:
-                        datos['FVC post'] = numbers[0].replace(',', '.')
-                elif datos['FVC pre'] is None:
-                    datos['FVC pre'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('fev1:'):
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                if seccion_actual == 'pre':
-                    if datos['FEV1 pre'] is None:
-                        datos['FEV1 pre'] = numbers[0].replace(',', '.')
-                elif seccion_actual == 'post':
-                    if datos['FEV1 post'] is None:
-                        datos['FEV1 post'] = numbers[0].replace(',', '.')
-                elif datos['FEV1 pre'] is None:
-                    datos['FEV1 pre'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('fev1/fvc:'):
-            numbers = re.findall(r'\d+', l_strip)
-            if numbers:
-                if seccion_actual == 'pre':
-                    if datos['FEV1/FVC pre'] is None:
-                        datos['FEV1/FVC pre'] = numbers[0]
-                elif seccion_actual == 'post':
-                    if datos['FEV1/FVC post'] is None:
-                        datos['FEV1/FVC post'] = numbers[0]
-                elif datos['FEV1/FVC pre'] is None:
-                    datos['FEV1/FVC pre'] = numbers[0]
-        
-        elif l_strip.lower().startswith('fef25-75%:'):
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                if seccion_actual == 'pre':
-                    if datos['FEF25-75% pre'] is None:
-                        datos['FEF25-75% pre'] = numbers[0].replace(',', '.')
-                elif seccion_actual == 'post':
-                    if datos['FEF25-75% post'] is None:
-                        datos['FEF25-75% post'] = numbers[0].replace(',', '.')
-                elif datos['FEF25-75% pre'] is None:
-                    datos['FEF25-75% pre'] = numbers[0].replace(',', '.')
-        
-        # Otros parámetros (solo si no se han encontrado ya)
-        elif l_strip.lower().startswith('dlco:') and datos['DLCO'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['DLCO'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('dlco/va:') and datos['DLCO/VA'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['DLCO/VA'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('va:') and datos['VA'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['VA'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('tlc:') and datos['TLC'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['TLC'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('vc:') and datos['VC'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['VC'] = numbers[0].replace(',', '.')
-        
-        elif l_strip.lower().startswith('rv:') and datos['RV'] is None:
-            numbers = re.findall(r'\d+[\.,]\d+', l_strip)
-            if numbers:
-                datos['RV'] = numbers[0].replace(',', '.')
-        
-        elif 'rv/tlc:' in l_strip.lower() and datos['RV/TLC'] is None:
-            numbers = re.findall(r'\d+', l_strip)
-            if numbers:
-                datos['RV/TLC'] = numbers[0]
+    return datos 

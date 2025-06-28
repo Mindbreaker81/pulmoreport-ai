@@ -9,4 +9,3 @@ streamlit-plotly-events
 Pillow
 matplotlib
 reportlab 
-xlrd>=2.0.1 

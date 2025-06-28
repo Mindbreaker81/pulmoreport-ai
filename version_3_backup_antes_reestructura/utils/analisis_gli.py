@@ -381,9 +381,18 @@ def analizar_espirometria(datos: Dict) -> Dict:
                 'severidad': severidad
             }
         
-        # KCO (si está disponible)
+        # KCO
+        kco_valor = None
         if datos.get('KCO pre') and datos.get('KCO pre') != 'Valor no encontrado':
-            kco_obs = float(datos['KCO pre'])
+            kco_valor = datos['KCO pre']
+        elif datos.get('KCO') and datos.get('KCO') != 'Valor no encontrado':
+            kco_valor = datos['KCO']
+        elif datos.get('DLCO/VA pre') and datos.get('DLCO/VA pre') != 'Valor no encontrado':
+            kco_valor = datos['DLCO/VA pre']
+        elif datos.get('DLCO/VA') and datos.get('DLCO/VA') != 'Valor no encontrado':
+            kco_valor = datos['DLCO/VA']
+        if kco_valor is not None:
+            kco_obs = float(kco_valor)
             kco_esp = calcular_valor_esperado_kco(edad, altura, sexo)
             kco_z = calcular_z_score(kco_obs, kco_esp, rse=0.15)
             interpretacion, severidad = interpretar_z_score_con_severidad(kco_z)
@@ -451,11 +460,17 @@ def analizar_espirometria(datos: Dict) -> Dict:
                 'severidad': severidad
             }
         
-        # RV/TLC (si está disponible)
+        # RV/TLC
         if datos.get('RV/TLC pre') and datos.get('RV/TLC pre') != 'Valor no encontrado':
             rvtlc_obs = float(datos['RV/TLC pre'])
             rvtlc_esp = calcular_valor_esperado_rvtlc(edad, altura, sexo)
+            print(f"DEBUG RV/TLC antes normalizar: observado={rvtlc_obs}, esperado={rvtlc_esp}")
+            # Normalizar solo el valor esperado si es >2
+            if rvtlc_esp > 2:
+                rvtlc_esp = rvtlc_esp / 100
+            print(f"DEBUG RV/TLC despues normalizar: observado={rvtlc_obs}, esperado={rvtlc_esp}")
             rvtlc_z = calcular_z_score(rvtlc_obs, rvtlc_esp, rse=0.15)
+            print(f"DEBUG RV/TLC: z-score={rvtlc_z}")
             interpretacion, severidad = interpretar_z_score_con_severidad(rvtlc_z)
             resultados['RV/TLC'] = {
                 'observado': rvtlc_obs,
@@ -509,8 +524,17 @@ def analizar_dlco(datos: Dict) -> Dict:
             }
         
         # KCO
+        kco_valor = None
         if datos.get('KCO pre') and datos.get('KCO pre') != 'Valor no encontrado':
-            kco_obs = float(datos['KCO pre'])
+            kco_valor = datos['KCO pre']
+        elif datos.get('KCO') and datos.get('KCO') != 'Valor no encontrado':
+            kco_valor = datos['KCO']
+        elif datos.get('DLCO/VA pre') and datos.get('DLCO/VA pre') != 'Valor no encontrado':
+            kco_valor = datos['DLCO/VA pre']
+        elif datos.get('DLCO/VA') and datos.get('DLCO/VA') != 'Valor no encontrado':
+            kco_valor = datos['DLCO/VA']
+        if kco_valor is not None:
+            kco_obs = float(kco_valor)
             kco_esp = calcular_valor_esperado_kco(edad, altura, sexo)
             kco_z = calcular_z_score(kco_obs, kco_esp, rse=0.15)
             interpretacion, severidad = interpretar_z_score_con_severidad(kco_z)
@@ -750,7 +774,13 @@ def analizar_volumenes(datos: Dict) -> Dict:
         if datos.get('RV/TLC pre') and datos.get('RV/TLC pre') != 'Valor no encontrado':
             rvtlc_obs = float(datos['RV/TLC pre'])
             rvtlc_esp = calcular_valor_esperado_rvtlc(edad, altura, sexo)
+            print(f"DEBUG RV/TLC antes normalizar: observado={rvtlc_obs}, esperado={rvtlc_esp}")
+            # Normalizar solo el valor esperado si es >2
+            if rvtlc_esp > 2:
+                rvtlc_esp = rvtlc_esp / 100
+            print(f"DEBUG RV/TLC despues normalizar: observado={rvtlc_obs}, esperado={rvtlc_esp}")
             rvtlc_z = calcular_z_score(rvtlc_obs, rvtlc_esp, rse=0.15)
+            print(f"DEBUG RV/TLC: z-score={rvtlc_z}")
             interpretacion, severidad = interpretar_z_score_con_severidad(rvtlc_z)
             resultados['RV/TLC'] = {
                 'observado': rvtlc_obs,

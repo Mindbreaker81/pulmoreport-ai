@@ -251,6 +251,7 @@ def extract_datos_pulmonar(texto: str) -> dict:
             numbers = re.findall(r'\d+[\.,]\d+', combined_text)
             if len(numbers) >= 1:
                 datos['RV/TLC'] = numbers[0].replace(',', '.')
+                print(f"DEBUG EXTRACCION RV/TLC: extraido={datos['RV/TLC']}")
             else:
                 datos['RV/TLC'] = 'Valor no encontrado'
     
